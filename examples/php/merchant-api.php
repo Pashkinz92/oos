@@ -1,10 +1,16 @@
 ﻿<?php
 
+//
 // настраиваемые данные
+//
+// URL тестового сервера
 $merchant_api_url_base = "https://oosdemo.pscb.ru/merchantApi";
-$secret_merchant_key = 'supersecretkeyhere';
+// номер магазина в OOS
 $market_place_id = 42;
-$order_id = "ORDER-28286814037";
+// секретный ключ для доступа к API OOS, соответствует номеру магазина
+$secret_merchant_key = 'supersecretkeyhere';
+// номер платежа в вашем магазине
+$order_id = "ORDER-2128506";
 
 /**
  * Запрос к API Мерчанта.
@@ -14,7 +20,7 @@ $order_id = "ORDER-28286814037";
  * @throws Exception в случае сетевой ошибки
  */
 function merchant_api($method, $params) {
-    global$secret_merchant_key, $merchant_api_url_base;
+    global $secret_merchant_key, $merchant_api_url_base;
 
     $url = "$merchant_api_url_base/$method";
 
@@ -30,12 +36,9 @@ function merchant_api($method, $params) {
         "Content-Length: " . strlen($request_body),
     );
 
-    static $curl = null;
-    if (is_null($curl)) {
-        $curl = curl_init();
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; OOS API client; '.php_uname('s').'; PHP/'.phpversion().')');
-    }
+    $curl = curl_init();
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($curl, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; OOS API client; '.php_uname('s').'; PHP/'.phpversion().')');
     curl_setopt($curl, CURLOPT_URL, $url);
     curl_setopt($curl, CURLOPT_POST, true);
     curl_setopt($curl, CURLOPT_POSTFIELDS, $request_body);
@@ -62,7 +65,14 @@ var_dump("Состояние платежа:", $check);
 
 // анализ успешности/неуспешности вызова
 if ($check['status'] === 'STATUS_SUCCESS') {
-    echo "Это успех\n";
+    echo "Платёж $order_id найден\n";
+    $state = $check['payment']['state'];
+    $amount = $check['payment']['amount'];
+    if ($state == 'end') {
+        echo "Платеж на сумму $amount проведен\n";
+    } else {
+        echo "Платеж на сумму $amount находится в состоянии $state\n";
+    }
 } else {
     echo "Неудача: " . $check['errorCode'] . " / " . $check['errorDescription'] . "\n";
 }
