@@ -2,9 +2,9 @@
 
 // настраиваемые данные
 $merchant_api_url_base = "https://oosdemo.pscb.ru/merchantApi";
-$secret_merchant_key = 'everyonegotsomethingtohide';
-$market_place_id = 32;
-$order_id = "VLASOV-28286814037";
+$secret_merchant_key = 'supersecretkeyhere';
+$market_place_id = 42;
+$order_id = "ORDER-28286814037";
 
 /**
  * Запрос к API Мерчанта.
