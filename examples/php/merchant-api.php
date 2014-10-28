@@ -45,15 +45,25 @@ function merchant_api($method, $params) {
     curl_setopt($curl, CURLOPT_HTTPHEADER, $request_headers);
     curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
 
+    // use it for debugging purposes
+    // включить для отладки
+    //curl_setopt($curl, CURLOPT_VERBOSE, 1);
+
+    // use it if the following code fails with Exception "Could not get reply from OOS..."
+    // попробуйте эти опции если не удается соединенится с сервером (Could not get reply from OOS)
+    //curl_setopt($curl, CURLOPT_SSLVERSION, 3);
+    //curl_setopt($curl, CURLOPT_SSL_CIPHER_LIST, 'SSLv3');
+
     $response_text = curl_exec($curl);
 
     if ($response_text === false) {
-        throw new Exception('Could not get reply: '.curl_error($curl));
+        throw new Exception('Could not get reply from OOS. Err No: '.curl_errno($curl).', Description: '.curl_error($curl));
     }
     $response_json = json_decode($response_text, true);
     if (!$response_json) {
         throw new Exception('Invalid data received, please make sure connection is working and requested API exists');
     }
+    curl_close($curl);
     return $response_json;
 }
 
