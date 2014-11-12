@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<install version="1.5" type="plugin" group="vmpayment">
+	<name>Oos</name>
+ 	<author>oos.pscb.ru</author>
+	<creationDate>27.02.2014</creationDate>
+	<authorEmail>yvtimofeev@pscb.ru</authorEmail>
+	<authorUrl>http://http://www.pscb.ru/</authorUrl>
+	<copyright>Copyright (C) 2014 Timofeev Yuri. All rights reserved.</copyright>
+	<version>1.0</version>
+	<description>Oos payment plugin</description>
+	<files> 
+ 		<filename plugin="oos">oos.php</filename>
+		<filename plugin="oos">oos_notify.php</filename>
+		<filename plugin="oos">oos_logo.jpg</filename>
+		<filename plugin="oos">index.html</filename>
+		<filename plugin="oos">log_func.php</filename>
+		<filename plugin="oos">log.txt</filename>
+		
+	</files>
+	<languages>
+		<language tag="ru-RU">ru-RU.plg_vmpayment_oos.ini</language>
+		<language tag="en-GB">en-GB.plg_vmpayment_oos.ini</language>
+	</languages>
+    <params addpath="/administrator/components/com_virtuemart/elements">
+        <param type="vmjpluginwarning"/>
+		<param type="spacer" default="PLG_OOS_VM2_PARAMS" level="level1" />
+		<param name="payment_logos" default="default" directory="/images/stories/virtuemart/payment" hide_default="1" hide_none="1" stripext="0" exclude="^_" type="vmfiles" label="PLG_OOS_VM2_PARAMS_LOGO" description="PLG_OOS_VM2_PARAMS_LOGO_DESC" />
+		<param type="spacer" default="" level="level1" />
+		<param type="spacer" default="PLG_OOS_VM2_PARAMS_OOS" level="level1" />
+		<param name="url_pay_page" type="text" label="PLG_OOS_VM2_PARAMS_URL_PAY_PAGE" description="PLG_OOS_VM2_PARAMS_URL_PAY_PAGE_DESC" />
+		<param name="merchant_id" type="text" label="PLG_OOS_VM2_PARAMS_MERCHANT" description="PLG_OOS_VM2_PARAMS_MERCHANT_DESC" />
+		<param name="merchant_key" type="password" label="PLG_OOS_VM2_PARAMS_MERCHANT_KEY" description="PLG_OOS_VM2_PARAMS_MERCHANT_KEY_DESC" />
+        <param name="url_success" type="text" label="PLG_OOS_VM2_PARAMS_URL_SUCCESS" description="PLG_OOS_VM2_PARAMS_URL_SUCCESS_DESC" />
+        <param name="url_fail" type="text" label="PLG_OOS_VM2_PARAMS_URL_FAIL" description="PLG_OOS_VM2_PARAMS_URL_FAIL_DESC" />
+		<param name="price_final" type="list" label="PLG_OOS_VM2_PARAMS_PRICE_FINAL" description="PLG_OOS_VM2_PARAMS_PRICE_FINAL_DESC">
+			<option value="0">COM_VIRTUEMART_NO</option>
+			<option value="1">COM_VIRTUEMART_YES</option>
+		</param>
+		<param name="lang" type="list" label="PLG_OOS_VM2_PARAMS_LANG" description="PLG_OOS_VM2_PARAMS_LANG_DESC" >
+			<option value="">PLG_OOS_VM2_PARAMS_LANG_RU</option>
+			<option value="en">PLG_OOS_VM2_PARAMS_LANG_EN</option>
+		</param>
+		<param type="spacer" default="" level="level1" />
+		<param type="spacer" default="PLG_OOS_VM2_PARAMS_RESTRICTIONS" level="level1" />
+		<param name="countries" type="vmcountries" scope="com_virtuemart" default="" label="PLG_OOS_VM2_PARAMS_COUNTRY" description="PLG_OOS_VM2_PARAMS_COUNTRY_DESC"/>
+		<param name="min_amount" type="text" label="PLG_OOS_VM2_PARAMS_MIN" description="PLG_OOS_VM2_PARAMS_MIN_DESC" />
+		<param name="max_amount" type="text" label="PLG_OOS_VM2_PARAMS_MAX" description="PLG_OOS_VM2_PARAMS_MAX_DESC" />
+		<param name="cost_per_transaction" type="text" label="PLG_OOS_VM2_PARAMS_TRANSACTION_FEE" description="PLG_OOS_VM2_PARAMS_TRANSACTION_FEE_DESC" />
+		<param name="cost_percent_total" type="text" label="PLG_OOS_VM2_PARAMS_PERCENTAGE" description="PLG_OOS_VM2_PARAMS_PERCENTAGE_DESC" />
+		<param name="tax_id" type="vmtaxes" scope="com_virtuemart" label="PLG_OOS_VM2_PARAMS_TAX" description="PLG_OOS_VM2_PARAMS_TAX_DESC" />
+		<param type="spacer" default="" level="level1" />
+		<param type="spacer" default="PLG_OOS_VM2_PARAMS_OPTIONS" level="level1" />
+		<param name="status_pending" type="vmorderstate" scope="com_virtuemart" default="P" label="PLG_OOS_VM2_PARAMS_STATUS_P" description="PLG_OOS_VM2_PARAMS_STATUS_P_DESC" />
+		<param name="status_success" type="vmorderstate" scope="com_virtuemart" default="C" label="PLG_OOS_VM2_PARAMS_STATUS_C" description="PLG_OOS_VM2_PARAMS_STATUS_C_DESC" />
+		<param name="status_canceled" type="vmorderstate" scope="com_virtuemart" default="X" label="PLG_OOS_VM2_PARAMS_STATUS_X" description="PLG_OOS_VM2_PARAMS_STATUS_X_DESC" />
+		<param type="spacer" default="" level="level1" />
+		<param name="debug" type="radio" default="0" label="PLG_OOS_VM2_PARAMS_DEBUG" description="PLG_OOS_VM2_PARAMS_DEBUG_DESC" >
+	    	<option value="0">COM_VIRTUEMART_NO</option>
+	    	<option value="1">COM_VIRTUEMART_YES</option>
+		</param>
+    </params>
+</install>
