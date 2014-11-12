@@ -5,7 +5,7 @@
 	* Перейти в Extensions
 	* Перейти в Extension Manager
 	* Выбрать таб Install, Package File
-	* выбрать архив плагина plg_vmpayment_oos.zip
+	* выбрать архив плагина `plg_vmpayment_oos.zip`
 	* Выбрать upload&install
 2. Активировать плагин:
 	* в административной панели выбрать Extensions
@@ -20,9 +20,10 @@
 	* Payment Method выберите OOS из выпадающего списка
 	* Нажмите кнопку сохранить (Save)
 4. Перейдите во вкладку конфигурации и укажите следующие параметры:
-	* Logos – выбрать oos_logo.jpg (Дополнительно из папки yourshop\plugins\vmpayment\oos\ скопируйте картинку oos_logo.jpg в папку yourshop\images\stories\virtuemart\payment\)
+	* Logos – выбрать oos_logo.jpg
+	* Дополнительно, скопируйте файл `oos_logo.jpg` из папки `ваш_магазин\plugins\vmpayment\oos\` в `ваш_магазин\images\stories\virtuemart\payment\`
 	* Url pay page - Если вы работаете в тестовом режиме, то укажите https://oosdemo.pscb.ru/pay/. Если в рабочем - https://oos.pscb.ru/pay/ 
-	* Merchant ID – укажите значение ID Магазина со страницы личного кабинета в системе OOS(https://oos.pscb.ru/)
+	* Merchant ID – укажите значение ID Магазина со страницы личного кабинета в системе OOS (https://oos.pscb.ru/)
 	* Key API in OOS system - укажите значение Секрутный ключ API со страницы личного кабинета в OOS (https://oos.pscb.ru/)
 	* Остальные параметры укажите по своему усмотрению
 	* Сохраните новую платежную систему
