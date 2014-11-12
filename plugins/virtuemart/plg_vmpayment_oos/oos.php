@@ -15,6 +15,9 @@ if (!class_exists('vmPSPlugin')) {
     require(JPATH_VM_PLUGINS . DS . 'vmpsplugin.php');
 }
 
+define("RESPONSE_ACTION_CONFIRM", "CONFIRM");
+define("RESPONSE_ACTION_REJECT", "REJECT");
+
 class plgVmPaymentOos extends vmPSPlugin
 {
     function __construct(& $subject, $config)
@@ -301,12 +304,21 @@ class plgVmPaymentOos extends vmPSPlugin
 
     function getMerchantKeyForOos() {
         $db = JFactory::getDBO();
-        $q = 'SELECT `payment_params` FROM `#__virtuemart_paymentmethods` WHERE `payment_element`="'."oos".'"';
+        $q = 'SELECT `payment_params` FROM `#__virtuemart_paymentmethods` WHERE `payment_element`="' . "oos" . '"';
         $db->setQuery($q);
-        $params = $db->loadResult();
-        $pattern = '/.*merchant_key=\"([^"]+).*/i';
-        $replacement = '$1';
-        return preg_replace($pattern, $replacement, $params);
+        $payment_params = $db->loadResult();
+
+        //$pattern = '/.*merchant_key=\"([^"]+).*/i';
+        //$replacement = '$1';
+        //return preg_replace($pattern, $replacement, $params);
+
+        $matches = array();
+        preg_match('/.*merchant_key=\"([^"]*)\".*/i', $payment_params, $matches);
+        if (count($matches) >= 2) {
+            return $matches[1];
+        } else {
+            return "";
+        }
     }
 
     function decrypt_aes128_ecb_pkcs5($encrypted, $arbitrary_key) {
@@ -317,153 +329,187 @@ class plgVmPaymentOos extends vmPSPlugin
     }
 
     function plgVmOnPaymentNotification() {
-        outToLog('RESPONSE plgVmOnPaymentNotification');
+        if (!class_exists('VirtueMartModelOrders')) {
+            require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
+        }
+        
+        outToLog('#plgVmOnPaymentNotification: started');
         $merchant_key = $this->getMerchantKeyForOos();
+        if (!$merchant_key) {
+            $msg = "No OOS secret key found in configuration";
+            outToLog($msg);
+            throw new Exception($msg);
+        }
 
-        $post = $_POST['encrypted_request'];
-        $decrypted_request = $this->decrypt_aes128_ecb_pkcs5($post, $merchant_key);
-        outToLog('RESPONSE plgVmOnPaymentNotification $decrypted_request = '.$decrypted_request);
+        $encrypted_request = file_get_contents('php://input');
+        //$encrypted_request = $_POST['encrypted_request'];
+        outToLog('#plgVmOnPaymentNotification: encrypted_request base64 = ' . base64_encode($encrypted_request));
+        //$encrypted_request = base64_decode($encrypted_request);
+        $decrypted_request = $this->decrypt_aes128_ecb_pkcs5($encrypted_request, $merchant_key);
+        outToLog("#plgVmOnPaymentNotification: using secret key $merchant_key");
+        outToLog("#plgVmOnPaymentNotification: decrypted_request: [$decrypted_request]");
         $json_request = json_decode($decrypted_request, true);
 
         if (!$json_request) {
-            throw new Exception('Invalid data received, please make sure connection is working and requested API exists');
+            $msg = 'Failed decrypting secret text or decoding JSON';
+            outToLog("#plgVmOnPaymentNotification: $msg");
+            throw new Exception($msg);
         }
         $ordersArray = $json_request['payments'];
 
-        outToLog('RESPONSE plgVmOnPaymentNotification count orders = '.count($ordersArray));
+        outToLog('#plgVmOnPaymentNotification: num orders = '.count($ordersArray));
         if (!$ordersArray) {
             return false;
         }
 
+        $jsonResponsePayments = array();
+
         for ($i = 0; $i < count($ordersArray); $i++) {
             $orderRecord = $ordersArray[$i];
             outToLog('RESPONSE: order '.($i + 1).' = '.$orderRecord["orderId"]);
-            if (!class_exists('VirtueMartModelOrders')) {
-                require(JPATH_VM_ADMINISTRATOR . DS . 'models' . DS . 'orders.php');
-            }
 
-            $payment = array(
-                "oos_id" => $orderRecord['marketPlace'],
+            $oosPayment = array(
+                //"oos_id" => $orderRecord['marketPlace'],
                 "pay_for" => $orderRecord["orderId"],
                 "order_amount" => $orderRecord["amount"],
                 "order_currency" => "RUB",
                 "paymentDateTime" => date('l jS \of F Y h:i:s A'),
                 "state" => $orderRecord['state']
             );
+            $order_amount = $this->to_float($oosPayment['order_amount']);
 
-            if (!isset($payment['pay_for'])) {
+            $orderId = $oosPayment['pay_for'];
+            if (!$orderId) {
                 continue;
             }
 
-            $order_number = $payment['pay_for'];
-
-            if (!($virtuemart_order_id = VirtueMartModelOrders::getOrderIdByOrderNumber($order_number))) {
+            $vmOrderId = VirtueMartModelOrders::getOrderIdByOrderNumber($orderId);
+            if (!$vmOrderId) {
+                array_push($jsonResponsePayments, array(
+                    "orderId" => $orderId,
+                    "action" => RESPONSE_ACTION_REJECT
+                ));
                 continue;
             }
 
-            if (!($payments = $this->getDatasByOrderId($virtuemart_order_id))) {
+            $vmPayments = $this->getDatasByOrderId($vmOrderId);
+            if (!$vmPayments) {
                 continue;
             }
 
-            $method = $this->getVmPluginMethod($payments[0]->virtuemart_paymentmethod_id);
+            $vmPM = $this->getVmPluginMethod($vmPayments[0]->virtuemart_paymentmethod_id);
 
-            if (!$this->selectedThisElement($method->payment_element)) {
+            if (!$this->selectedThisElement($vmPM->payment_element)) {
                 continue;
             }
 
-            $this->logInfo('oos_data ' . implode('   ', $payment), 'message');
+            $this->logInfo('oos_data ' . implode('   ', $oosPayment), 'message');
 
             $error = '';
-            $order_amount = $this->to_float($payment['order_amount']);
 
-            $pay_for = $order_number;
-            $order_currency = $payment['order_currency'];
+            //$pay_for = $order_number;
+            $order_currency = $oosPayment['order_currency'];
 
             //проверяем pay запрос
-            $order = array();
-            $modelOrder = VmModel::getModel('orders');
-            $order['customer_notified'] = 1;
-            $order['order_status'] = $method->status_pending;
+            $localOrder = array(
+                'customer_notified' => 1,
+                'order_status' => $vmPM->status_pending
+            );
 
             //получаем данные
-            $oos_id = $payment['oos_id'];
-            outToLog('RESPONSE: oos_id = '.$oos_id.'virtuemart_order_id = '.$virtuemart_order_id.' order_number = '.$order_number.'$order_amount = '.$order_amount);
-            if ($merchant_key != $this->_getSecretWord($method)) {
+            outToLog('RESPONSE: virtuemart_order_id = '.$vmOrderId.' order_number = '.$orderId.'$order_amount = '.$order_amount);
+            if ($merchant_key != $this->_getSecretWord($vmPM)) {
                 $error .= JText::_('PLG_OOS_VM2_ERROR_3') . '<br>';
-            }
-            //производим проверки входных данных
-            if (empty($oos_id)) {
-                $error .= JText::_('PLG_OOS_VM2_ERROR_3') . '<br>';
-            } else {
-                if (!is_numeric(intval($oos_id))) {
-                    $error .= JText::_('PLG_OOS_VM2_ERROR_4') . '<br>';
-                }
             }
 
             if (empty($order_amount)) {
                 $error .= JText::_('PLG_OOS_VM2_ERROR_5') . '<br>';
-            } else {
-                if (!is_numeric($order_amount)) {
-                    $error .= JText::_('PLG_OOS_VM2_ERROR_4') . '<br>';
-                }
+            } else if (!is_numeric($order_amount)) {
+                $error .= JText::_('PLG_OOS_VM2_ERROR_4') . '<br>';
             }
 
             if (empty($order_currency)) {
                 $error .= JText::_('PLG_OOS_VM2_ERROR_6') . '<br>';
-            } else {
-                if (strlen($order_currency) > 4) {
-                    $error .= JText::_('PLG_OOS_VM2_ERROR_7') . '<br>';
-                }
+            } else if (strlen($order_currency) > 4) {
+                $error .= JText::_('PLG_OOS_VM2_ERROR_7') . '<br>';
             }
-
 
             //если нет ошибок
             if (!$error) {
-                if ($pay_for) {
+                if ($orderId) {
                     //сверяем строчки хеша (присланную и созданную нами)
-                    $state = $payment['state'];
+                    $state = $oosPayment['state'];
+                    $responseAction = null;
                     if ($state == 'err') {
-                        $order['order_status'] = $method->status_canceled;
-                        outToLog('RESPONSE: order[order_status] = '.$order['order_status'].' comment = '.JText::_('PLG_OOS_VM2_ERROR_11'));
-                        $order['comments'] = sprintf(JText::_('PLG_OOS_VM2_ERROR_11'), $order_number);
+                        $jtext = JText::_('PLG_OOS_VM2_ERROR_11');
+                        $localOrder['order_status'] = $vmPM->status_canceled;
+                        outToLog('RESPONSE: order[order_status] = '.$localOrder['order_status'].', comment = '.$jtext);
+                        $localOrder['comments'] = sprintf($jtext, $orderId);
+                        $responseAction = RESPONSE_ACTION_CONFIRM;
                     } else if ($state == 'rej') {
-                        $order['order_status'] = $method->status_canceled;
-                        outToLog('RESPONSE: order[order_status] = '.$order['order_status'].' comment = '.JText::_('PLG_OOS_VM2_ERROR_12'));
-                        $order['comments'] = sprintf(JText::_('PLG_OOS_VM2_ERROR_12'), $order_number);
+                        $jtext = JText::_('PLG_OOS_VM2_ERROR_12');
+                        $localOrder['order_status'] = $vmPM->status_canceled;
+                        outToLog('RESPONSE: order[order_status] = '.$localOrder['order_status'].', comment = '.$jtext);
+                        $localOrder['comments'] = sprintf($jtext, $orderId);
+                        $responseAction = RESPONSE_ACTION_CONFIRM;
                     } else if ($state == 'ref') {
-                        $order['order_status'] = $method->status_success;
-                        outToLog('RESPONSE: order[order_status] = '.$order['order_status'].' comment = '.JText::_('PLG_OOS_VM2_ERROR_13'));
-                        $order['comments'] = sprintf(JText::_('PLG_OOS_VM2_ERROR_13'), $order_number);
+                        $jtext = JText::_('PLG_OOS_VM2_ERROR_13');
+                        $localOrder['order_status'] = $vmPM->status_success;
+                        outToLog('RESPONSE: order[order_status] = '.$localOrder['order_status'].', comment = '.$jtext);
+                        $localOrder['comments'] = sprintf($jtext, $orderId);
+                        $responseAction = RESPONSE_ACTION_CONFIRM;
                     } else if ($state == 'exp') {
-                        $order['order_status'] = $method->status_pending;
-                        outToLog('RESPONSE: order[order_status] = '.$order['order_status'].' comment = '.JText::_('PLG_OOS_VM2_ERROR_14'));
-                        $order['comments'] = sprintf(JText::_('PLG_OOS_VM2_ERROR_14'), $order_number);
+                        $jtext = JText::_('PLG_OOS_VM2_ERROR_14');
+                        $localOrder['order_status'] = $vmPM->status_pending;
+                        outToLog('RESPONSE: order[order_status] = '.$localOrder['order_status'].', comment = '.$jtext);
+                        $localOrder['comments'] = sprintf($jtext, $orderId);
+                        $responseAction = RESPONSE_ACTION_CONFIRM;
                     } else if ($state == 'end') {
-                        $order['order_status'] = $method->status_success;
-                        outToLog('RESPONSE: order[order_status] = '.$order['order_status'].' comment = '.JText::_('PLG_OOS_VM2_ERROR_15'));
-                        $order['comments'] = sprintf(JText::_('PLG_OOS_VM2_ERROR_15'), $order_number);
+                        $jtext = JText::_('PLG_OOS_VM2_ERROR_15');
+                        $localOrder['order_status'] = $vmPM->status_success;
+                        outToLog('RESPONSE: order[order_status] = '.$localOrder['order_status'].', comment = '.$jtext);
+                        $localOrder['comments'] = sprintf($jtext, $orderId);
+                        $responseAction = RESPONSE_ACTION_CONFIRM;
+                    }
+                    
+                    if ($responseAction) {
+                        array_push($jsonResponsePayments, array(
+                            "orderId" => $orderId,
+                            "action" => $responseAction
+                        ));
                     }
                 } else {
-                    //если pay_for - не правильный формат
-                    $order['order_status'] = $method->status_canceled;
-                    $order['comments'] = JText::_('PLG_OOS_VM2_ERROR_9');
+                    // вобщем-то сюда попасть уже не можем
+                    $localOrder['order_status'] = $vmPM->status_canceled;
+                    $localOrder['comments'] = JText::_('PLG_OOS_VM2_ERROR_9');
                 }
             } else {
                 outToLog('$error = '.$error);
                 //если есть ошибки
-                $order['order_status'] = $method->status_canceled;
-                $order['comments'] = JText::_('PLG_OOS_VM2_ERROR_9') . ': ' . $error;
+                $localOrder['order_status'] = $vmPM->status_canceled;
+                $localOrder['comments'] = JText::_('PLG_OOS_VM2_ERROR_9') . ': ' . $error;
             }
 
-            $this->_storeOosInternalData($method, $payment, $virtuemart_order_id, $payments[0]->virtuemart_paymentmethod_id);
-            $this->logInfo('plgVmOnPaymentNotification return new_status: ' . $order['order_status'], 'message');
+            $this->_storeOosInternalData($vmPM, $oosPayment, $vmOrderId, $vmPayments[0]->virtuemart_paymentmethod_id);
+            $this->logInfo('plgVmOnPaymentNotification return new_status: ' . $localOrder['order_status'], 'message');
 
-            $modelOrder->updateStatusForOneOrder($virtuemart_order_id, $order, true);
+            $modelOrder = VmModel::getModel('orders');
+            $modelOrder->updateStatusForOneOrder($vmOrderId, $localOrder, true);
 
-            if (isset($payment['return_context'])) {
-                $this->emptyCart($payment['return_context'], $order_number);
+            if (isset($oosPayment['return_context'])) {
+                $this->emptyCart($oosPayment['return_context'], $orderId);
             }
         }
+
+        if ($jsonResponsePayments) {
+            $jsonResponse = array("payments" => $jsonResponsePayments);
+            $jsonResponseStr = json_encode($jsonResponse);
+            outToLog("json respone: $jsonResponseStr");
+            echo "<!-- JSON BEGIN";
+            echo $jsonResponseStr;
+            echo "JSON END -->";
+        }
+
     }
 
     function _storeOosInternalData($method, $payment, $virtuemart_order_id, $virtuemart_paymentmethod_id)
