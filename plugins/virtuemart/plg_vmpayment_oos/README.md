@@ -24,7 +24,7 @@
 	* Дополнительно, скопируйте файл `oos_logo.jpg` из папки `ваш_магазин\plugins\vmpayment\oos\` в `ваш_магазин\images\stories\virtuemart\payment\`
 	* Url pay page - Если вы работаете в тестовом режиме, то укажите https://oosdemo.pscb.ru/pay/. Если в рабочем - https://oos.pscb.ru/pay/ 
 	* Merchant ID – укажите значение ID Магазина со страницы личного кабинета в системе OOS (https://oos.pscb.ru/)
-	* Key API in OOS system - укажите значение Секрутный ключ API со страницы личного кабинета в OOS (https://oos.pscb.ru/)
+	* Key API in OOS system - укажите значение Секретный ключ API со страницы личного кабинета в OOS (https://oos.pscb.ru/)
 	* Остальные параметры укажите по своему усмотрению
 	* Сохраните новую платежную систему
 	* Перейдите на страницу личного кабинета в системе OOS (https://oos.pscb.ru/)
